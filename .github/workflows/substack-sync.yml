@@ -1,0 +1,48 @@
+name: Copy Substack posts to the site
+
+on:
+  schedule:
+    - cron: "0 19 * * *"   # daily, about 6am in Melbourne
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+  pull_request:
+    paths:
+      - "scripts/sync_substack.py"
+      - ".github/workflows/substack-sync.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: substack-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the feed (pull requests only, changes nothing)
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/sync_substack.py --dry-run
+
+      - name: Copy new and edited posts
+        if: github.event_name != 'pull_request'
+        run: python3 scripts/sync_substack.py
+
+      - name: Publish
+        if: github.event_name != 'pull_request'
+        run: |
+          git add index.html substack/articles.json 2>/dev/null || git add index.html
+          if git diff --cached --quiet; then
+            echo "Nothing new on Substack."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Copy latest Substack posts"
+          git push
