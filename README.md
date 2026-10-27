@@ -6,8 +6,12 @@ Personal site for Sascha Rust. Plain HTML, CSS and a small script, built from th
 - `styles.css`: design tokens and layout
 - `site.js`: email reveal and the article reader (the page works without it)
 
-## Adding writing
-The Writing section is commented out in `index.html` until there is a real article. Instructions are in the comment.
+## Writing (from Substack)
+Articles are written and published on [Substack](https://sascharust.substack.com). To put one on this site, send Claude the post's link in the Personal Page project. Claude runs `scripts/substack_posts.py`, which cleans the post into this site's design, saves it in `substack/articles.json` and rebuilds the Writing section of `index.html`. Each article ends with a link to the Substack original. The Writing section and its nav link stay hidden until the first post.
+
+- Don't edit the Writing section in `index.html` by hand, because the script overwrites it.
+- To change a post, edit it on Substack and send the link again. To take one down, ask Claude.
+- Substack blocks automated requests from GitHub's servers, so this can't run on a schedule.
 
 ## Domain and email
 - DNS for sascharust.com is hosted by Fastmail (nameservers ns1/ns2.messagingengine.com); Hover is only the registrar. Website records (four GitHub A records and the www CNAME) live in Fastmail.

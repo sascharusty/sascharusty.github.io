@@ -24,7 +24,7 @@
   <header class="site-header">
     <span class="name">Sascha Rust</span>
     <nav class="mono">
-      <!-- Add back when there is at least one article: <a href="#writing" data-scroll="writing">Writing</a> -->
+      <!-- substack-nav:start --><!-- substack-nav:end -->
       <a href="#research" data-scroll="research">Research</a>
       <a href="#built" data-scroll="built">Things I've built</a>
     </nav>
@@ -41,43 +41,12 @@
   </section>
 
   <!--
-    Writing section. Hidden while there are no articles (per the design brief).
-    To publish the first article, uncomment this block, add the "Writing" nav link
-    above, and add one row in .list plus one <article> in .articles per piece,
-    newest first. The data-slug on the row and the article must match.
-    Read time is calculated automatically (words / 230, minimum 1).
-
-  <section id="writing" class="grid ruled">
-    <div class="label">
-      <h2>Writing</h2>
-      <span class="mono muted" data-count>01 · newest first</span>
-    </div>
-    <div class="writing-col">
-      <div class="list scroll">
-        <a class="row" href="#writing/example-slug" data-slug="example-slug">
-          <span class="mono muted">Oct 2026</span>
-          <span class="stack">
-            <span class="row-title">Article title</span>
-            <span class="dek">One sentence summarising the piece.</span>
-            <span class="mono muted"><span>Essay</span> · <span data-readtime></span></span>
-          </span>
-        </a>
-      </div>
-      <div class="articles">
-        <article data-slug="example-slug" data-date="Oct 2026" data-venue="Essay" hidden>
-          <h2 class="article-title">Article title</h2>
-          <p class="dek">One sentence summarising the piece.</p>
-          <div class="body">
-            <p>Opening paragraph.</p>
-            <h3>A subheading</h3>
-            <p>A second paragraph.</p>
-            <blockquote>A pull quote, set in the serif.</blockquote>
-          </div>
-        </article>
-      </div>
-    </div>
-  </section>
+    Writing section. Built from substack/articles.json by scripts/substack_posts.py
+    (see README). Anything between the substack-writing markers is overwritten,
+    so don't edit it by hand.
+    The section and its nav link stay hidden while there are no posts.
   -->
+  <!-- substack-writing:start --><!-- substack-writing:end -->
 
   <section id="research" class="grid ruled">
     <div class="label">
