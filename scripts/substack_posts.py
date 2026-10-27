@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Copy posts from Sascha's Substack into the Writing section of index.html.
+"""Put Sascha's Substack posts into the Writing section of index.html.
 
-Run daily by .github/workflows/substack-sync.yml. Standard library only.
+Substack refuses automated requests from GitHub's servers, so this is run by
+hand (by Claude, when Sascha sends a post's link). Standard library only.
 
-  python3 scripts/sync_substack.py                 # fetch the feed, update files
-  python3 scripts/sync_substack.py --feed FILE     # use a saved feed instead
-  python3 scripts/sync_substack.py --dry-run       # report, change nothing
+  python3 scripts/substack_posts.py --post post.json   # add or update one post
+  python3 scripts/substack_posts.py --feed feed.xml    # add or update from a saved feed
+  python3 scripts/substack_posts.py --remove SLUG      # take a post off the site
+  python3 scripts/substack_posts.py --dry-run ...      # report, change nothing
 
-Every post ever seen is kept in substack/articles.json, because the feed only
-lists the most recent posts. A post edited on Substack is refreshed on the next
-run. A post deleted from Substack is dropped while it is still recent enough
-that the feed would have listed it. To remove an older one, delete its entry
-from articles.json.
+post.json holds {"link", "title", "dek", "published" (YYYY-MM-DD), "body"},
+where body is the post's HTML. It is cleaned down to the tags the site styles.
+Every post is kept in substack/articles.json and the page is rebuilt from it.
 """
 
 import argparse
@@ -20,13 +20,11 @@ import html
 import json
 import re
 import sys
-import urllib.request
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
 
 SUBSTACK = "https://sascharust.substack.com"
-FEED_URL = SUBSTACK + "/feed"
 ROOT = Path(__file__).resolve().parent.parent
 INDEX = ROOT / "index.html"
 STORE = ROOT / "substack" / "articles.json"
@@ -39,12 +37,6 @@ NAV_END = "<!-- substack-nav:end -->"
 
 
 # ---------------------------------------------------------------- feed
-
-def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "sascharust.com substack sync"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read()
-
 
 def text(item, tag):
     el = item.find(tag)
@@ -201,12 +193,6 @@ def clean(raw_html):
 
 def merge(stored, posts):
     by_slug = {a["slug"]: a for a in stored}
-    feed_slugs = {p["slug"] for p in posts}
-    if posts:
-        oldest = min(p["published"] for p in posts)
-        for slug, a in list(by_slug.items()):
-            if a["published"] >= oldest and slug not in feed_slugs:
-                del by_slug[slug]  # deleted or unpublished on Substack
     for p in posts:
         by_slug[p["slug"]] = p
     return sorted(by_slug.values(), key=lambda a: a["published"], reverse=True)
@@ -273,16 +259,38 @@ def render_index(doc, articles):
 
 # ---------------------------------------------------------------- main
 
+def post_from_json(path):
+    d = json.loads(Path(path).read_text())
+    m = re.search(r"/p/([^/?#]+)", d["link"])
+    if not m:
+        sys.exit("Not a Substack post link: " + d["link"])
+    return {
+        "slug": m.group(1),
+        "title": d["title"].strip(),
+        "dek": (d.get("dek") or "").strip(),
+        "link": d["link"].split("?")[0],
+        "published": d["published"],
+        "body": clean(d["body"]),
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--feed", help="read the feed from this file instead of Substack")
+    what = ap.add_mutually_exclusive_group(required=True)
+    what.add_argument("--post", help="add or update one post from a JSON file")
+    what.add_argument("--feed", help="add or update every post in a saved Substack feed")
+    what.add_argument("--remove", metavar="SLUG", help="take a post off the site")
     ap.add_argument("--dry-run", action="store_true", help="report what would change, write nothing")
     args = ap.parse_args()
 
-    raw = Path(args.feed).read_bytes() if args.feed else fetch(FEED_URL)
-    posts = parse_feed(raw)
     stored = json.loads(STORE.read_text()) if STORE.exists() else []
-    articles = merge(stored, posts)
+    if args.remove:
+        articles = [a for a in stored if a["slug"] != args.remove]
+        if len(articles) == len(stored):
+            sys.exit("No post with slug " + args.remove)
+    else:
+        posts = [post_from_json(args.post)] if args.post else parse_feed(Path(args.feed).read_bytes())
+        articles = merge(stored, posts)
 
     old_doc = INDEX.read_text()
     new_doc = render_index(old_doc, articles)
@@ -290,8 +298,7 @@ def main():
     old_store = STORE.read_text() if STORE.exists() else "[]\n"
 
     changed = new_doc != old_doc or new_store != old_store
-    print("Feed: %d post(s). Site: %d article(s). %s" % (
-        len(posts), len(articles), "Changes found." if changed else "No changes."))
+    print("Site: %d article(s). %s" % (len(articles), "Changes found." if changed else "No changes."))
     if changed and not args.dry_run:
         STORE.parent.mkdir(exist_ok=True)
         STORE.write_text(new_store)
